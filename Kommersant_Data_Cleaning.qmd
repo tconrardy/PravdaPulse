@@ -1,0 +1,136 @@
+---
+title: "Kommersant Data Cleaning"
+author: "Tessa Conrardy"
+format: html
+editor: visual
+---
+
+I tweaked this code slightly for each scraped section of Kommersant to produce a cleaned csv fit for later combining into the overall dataset.
+
+## Libraries
+```{r}
+#Uncomment and run if your machine does not already have the required packages
+# install.packages("dplyr")
+# install.packages("tidyr")
+# install.packages("tm")
+# install.packages("wordcloud")
+# install.packages("readr")
+# install.packages("tidytext")
+# install.packages("ggplot2")
+# install.packages("syuzhet")
+# install.packages("lubridate")
+# install.packages("scales")
+# install.packages("reshape2")
+# install.packages("stringr")
+# install.packages("quanteda")
+# install.packages("stringi")
+
+library(dplyr)
+library(tidyr)
+library(tm)
+library(wordcloud)
+library(readr)
+library(tidytext)
+library(ggplot2)   
+library(syuzhet)
+library(lubridate)
+library(scales)
+library(reshape2)
+library(stringr)
+library(quanteda)
+library(stringi)
+```
+
+## Load Dataset
+```{r}
+# Import dataset
+  kommersant <- read.csv("Kommersant_Polit.csv")
+
+  kommersant <- kommersant %>%
+  # Add columns for the relevant section and outlet
+  mutate(Section = "Политика",
+         Outlet_Name = "Kommersant") %>%
+  # Select relevant columns
+  select(c(Outlet_Name,
+           Section,
+           Article_Link.href,
+           Headline,
+           Article_Text,
+           Date,
+           Views
+  ))
+```
+
+## Fix dates, views
+```{r}
+# Separate date and time into two separate columns
+  kommersant <- kommersant %>%
+    mutate(Date = as.POSIXct(Date, format = "%d.%m.%Y, %H:%M"),
+           Date = as.Date(Date))
+
+# Change Views to a number (from "11K"/"2M" format)
+  kommersant <- kommersant %>%
+    mutate(Views = as.numeric(sub("K", "e3", sub("M", "e6", Views))))
+```
+
+## Clean Article Text
+In grabbing the <p> tags or equivalent for the article text, Web Scraper adds extraneous characters to separate each paragraph. These are of no interest for us, so we can discard them. 
+```{r}
+# Get rid of Web Scraper/html holdovers
+  kommersant <- kommersant %>%
+    #Get rid of \"}, enclosures
+    mutate(Article_Text = gsub('\\"\\},', ' ', Article_Text)) %>%
+    #Get rid of [{"Article_Text":" enclosures
+    mutate(Article_Text = gsub('\\{"Article_Text":"', ' ', Article_Text)) %>%
+    #Get rid of \\\
+    mutate(Article_Text = gsub('\\\\\"', ' ', Article_Text)) %>%
+    #Get rid of [
+    mutate(Article_Text = gsub('\\[', '', Article_Text))
+```
+
+## Simplified Text
+I also create a column of simplified text for ease of more basic word parsing. (Namely, I push all characters to lowercase, remove all punctuation, standardize a few common abbreviations, and remove common Russian "filler words" or "stop words.") 
+```{r}
+# Text Cleaning
+  kommersant <- kommersant %>%
+    # Convert all text to lowercase
+    mutate(Article_Text_Simplified = tolower(Article_Text)) %>%
+    # Remove all punctuation except periods
+    mutate(Article_Text_Simplified = str_replace_all(
+      Article_Text_Simplified, "[[:punct:]&&[^.]]", "")) %>%
+    # Don't want тыс. and руб. being mistaken for sentence conclusions
+    mutate(Article_Text_Simplified = str_replace_all(
+      Article_Text_Simplified, "тыс.", "тысяча")) %>%
+    mutate(Article_Text_Simplified = str_replace_all(
+      Article_Text_Simplified, "руб.", "рубль"))
+
+# Stopwords
+  # Import list of Russian stop words
+    russ_stopwords <- tolower(readLines("stopwords-ru.txt"))
+    # Taken from:
+    # https://github.com/stopwords-iso/stopwords-ru/blob/master/stopwords-ru.txt  
+  # Remove stopwords
+    kommersant <- kommersant %>%
+      mutate(Article_Text_Simplified = 
+               str_replace_all(Article_Text_Simplified,
+                               paste0("\\b", paste(russ_stopwords, 
+                                                   collapse = "\\b|\\b"), 
+                                                              "\\b"), ""))
+```
+
+## Export cleaned csv file
+```{r}
+# Rearrange columns in desired order
+  kommersant <- kommersant %>%
+      select(Outlet_Name,
+             Section,
+             Article_Link.href,
+             Headline,
+             Article_Text,
+             Article_Text_Simplified,
+             Date,
+             Views)
+
+# Export finalized CSV file with desired name
+  write.csv(kommersant, file = "Kommersant_Polit_Clean.csv")
+```
