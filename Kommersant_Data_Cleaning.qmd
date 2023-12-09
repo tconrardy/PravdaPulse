@@ -44,11 +44,11 @@ library(stringi)
 ## Load Dataset
 ```{r}
 # Import dataset
-  kommersant <- read.csv("Kommersant_Polit.csv")
+  kommersant <- read.csv("Kommersant_Econ.csv")
 
   kommersant <- kommersant %>%
   # Add columns for the relevant section and outlet
-  mutate(Section = "Политика",
+  mutate(Section = "Экономика",
          Outlet_Name = "Kommersant") %>%
   # Select relevant columns
   select(c(Outlet_Name,
@@ -104,18 +104,19 @@ I also create a column of simplified text for ease of more basic word parsing. (
     mutate(Article_Text_Simplified = str_replace_all(
       Article_Text_Simplified, "руб.", "рубль"))
 
-# Stopwords
-  # Import list of Russian stop words
-    russ_stopwords <- tolower(readLines("stopwords-ru.txt"))
-    # Taken from:
-    # https://github.com/stopwords-iso/stopwords-ru/blob/master/stopwords-ru.txt  
-  # Remove stopwords
-    kommersant <- kommersant %>%
-      mutate(Article_Text_Simplified = 
-               str_replace_all(Article_Text_Simplified,
-                               paste0("\\b", paste(russ_stopwords, 
-                                                   collapse = "\\b|\\b"), 
-                                                              "\\b"), ""))
+# Omitted in the end because of processing constraints
+# # Stopwords
+#   # Import list of Russian stop words
+#     russ_stopwords <- tolower(readLines("stopwords-ru.txt"))
+#     # Taken from:
+#     # https://github.com/stopwords-iso/stopwords-ru/blob/master/stopwords-ru.txt  
+#   # Remove stopwords
+#     kommersant <- kommersant %>%
+#       mutate(Article_Text_Simplified = 
+#                str_replace_all(Article_Text_Simplified,
+#                                paste0("\\b", paste(russ_stopwords, 
+#                                                    collapse = "\\b|\\b"), 
+#                                                               "\\b"), ""))
 ```
 
 ## Export cleaned csv file
@@ -127,10 +128,12 @@ I also create a column of simplified text for ease of more basic word parsing. (
              Article_Link.href,
              Headline,
              Article_Text,
-             Article_Text_Simplified,
+             # Article_Text_Simplified,
              Date,
              Views)
 
+  head(kommersant)
+
 # Export finalized CSV file with desired name
-  write.csv(kommersant, file = "Kommersant_Polit_Clean.csv")
+  write.csv(kommersant, file = "Kommersant_Econ_Clean.csv")
 ```
